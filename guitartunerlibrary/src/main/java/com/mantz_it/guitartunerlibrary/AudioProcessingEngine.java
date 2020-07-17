@@ -104,15 +104,9 @@ public class AudioProcessingEngine extends Thread{
 		stopRequested = false;
 		Log.i(LOGTAG, "run: AudioProcessingEngine '" + this.getName() + "' started.");
 
-		// Determine buffer size for the audioRecord:
-		int minBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
-				RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
-		Log.d(LOGTAG, "constructor: min. buffer size is " + minBufferSize);
-		int audioBufferSize = Math.max(minBufferSize, BUFFER_SIZE * RECORDER_ELEMENT_SIZE) * 2;
+		int audioBufferSize = getAudioBufferSize();
 
-		// initialize the AudioRecord instance
-		audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-				RECORDER_AUDIO_ENCODING, audioBufferSize);
+		initializeTheAudioRecordInstance(audioBufferSize);
 
 		// allocate the buffers:
 		audioBuffer = new short[BUFFER_SIZE];
@@ -121,69 +115,126 @@ public class AudioProcessingEngine extends Thread{
 		mag = new float[FFT_SIZE / 2];
 
 		// Check if AudioRecord is correctly initialized:
-		if(audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-			Log.e(LOGTAG, "run: audioRecord is null or not initialized! Abort!");
-			stopRequested = true;
-			return;
-		}
+		if (isAudioRecordCorrectlyInitialized()) return;
 
-		// Start recording:
-		audioRecord.startRecording();
 
-		while (!stopRequested) {
-			// Read new audio samples into the buffer:
-			if(audioRecord.read(audioBuffer, 0, audioBuffer.length) != audioBuffer.length) {
-				Log.e(LOGTAG, "run: Error while reading from AudioRecord. stop.");
-				stopRequested = true;
-				break;
-			}
-			Log.d(LOGTAG, "run: audioBuffer: " + audioBuffer[0] + ", " + audioBuffer[1] + ", " + audioBuffer[2] + ", ..., " + audioBuffer[500]);
+		doRecording();
 
-			// convert the shorts to floats and zero the imagSamples buffer:
-			for (int i = 0; i < realSamples.length; i++) {
-				realSamples[i] = 0f;
-				imagSamples[i] = 0f;
-			}
-			short2float(audioBuffer, realSamples);
-
-			// do the fft:
-			fftInstance.applyWindow(realSamples, imagSamples);
-			fftInstance.fft(realSamples, imagSamples);
-
-			// calculate the logarithmic magnitude:
-			// note: the spectrum is symetrical around zero Hz and we are only interested in the positive
-			// part of it.
-			for (int i = 0; i < realSamples.length / 2; i++) {
-				// Calc the magnitude = log(sqrt(re^2 + im^2))
-				// note that we still have to divide re and im by the fft size
-				realPower = realSamples[i]/FFT_SIZE;
-				realPower = realPower * realPower;
-				imagPower = imagSamples[i]/FFT_SIZE;
-				imagPower = imagPower * imagPower;
-				mag[i] = (float) Math.log10(Math.sqrt(realPower + imagPower));
-			}
-
-			// pass the magnitude samples to the Guitar Tuner:
-			if(!guitarTuner.processFFTSamples(mag, RECORDER_SAMPLERATE, (float)RECORDER_SAMPLERATE/(float)BUFFER_SIZE))
-				failCounter++;
-			else
-				failCounter = 0;
-
-			// We stop the thread if processFFTSamples() failed 10 times in a row.
-			// Usually this happens if the surface view is not initialized/valid and the app
-			// is in the background.
-			if(failCounter > 10) {
-				Log.w(LOGTAG, "run: Calling processFFTSamples() failed 10 times in a row. stop.");
-				stopRequested = true;
-			}
-		}
-
-		// Stop recording:
-		audioRecord.stop();
 		audioRecord.release();
 
 		Log.i(LOGTAG, "run: AudioProcessingEngine '" + this.getName() + "' stopped");
 		stopRequested = true;
+	}
+
+	public void doRecording() {
+		float realPower;
+		float imagPower;// Start recording:
+		audioRecord.startRecording();
+
+		while (!stopRequested) {
+			// Read new audio samples into the buffer:
+			if (readNewAudioSamplesIntoTheBuffer()) break;
+
+			// convert the shorts to floats and zero the imagSamples buffer:
+			convertTheShortsToFloatsAndZeroTheImagSamplesBuffer();
+
+			// do the fft:
+			doTheFft();
+
+			// calculate the logarithmic magnitude:
+			calculateTheLogarithmicMagnitude();
+
+			// We stop the thread if processFFTSamples() failed 10 times in a row.
+			// Usually this happens if the surface view is not initialized/valid and the app
+			// is in the background.
+			processFFTSamplesFailled10Times();
+
+		}
+
+		// Stop recording:
+		audioRecord.stop();
+	}
+
+	public void calculateTheLogarithmicMagnitude() {
+		float realPower;
+		float imagPower;// note: the spectrum is symetrical around zero Hz and we are only interested in the positive
+		// part of it.
+		for (int i = 0; i < realSamples.length / 2; i++) {
+			// Calc the magnitude = log(sqrt(re^2 + im^2))
+			// note that we still have to divide re and im by the fft size
+			realPower = realSamples[i]/FFT_SIZE;
+			realPower = realPower * realPower;
+			imagPower = imagSamples[i]/FFT_SIZE;
+			imagPower = imagPower * imagPower;
+			mag[i] = (float) Math.log10(Math.sqrt(realPower + imagPower));
+		}
+
+		// pass the magnitude samples to the Guitar Tuner:
+		if(!guitarTuner.processFFTSamples(mag, RECORDER_SAMPLERATE, (float)RECORDER_SAMPLERATE/(float)BUFFER_SIZE))
+			failCounter++;
+		else
+			failCounter = 0;
+	}
+
+
+	public void processFFTSamplesFailled10Times() {
+		// We stop the thread if processFFTSamples() failed 10 times in a row.
+		// Usually this happens if the surface view is not initialized/valid and the app
+		// is in the background.
+		if(failCounter > 10) {
+			Log.w(LOGTAG, "run: Calling processFFTSamples() failed 10 times in a row. stop.");
+			stopRequested = true;
+		}
+	}
+
+	public void doTheFft() {
+		// do the fft:
+		fftInstance.applyWindow(realSamples, imagSamples);
+		fftInstance.fft(realSamples, imagSamples);
+	}
+
+	public void convertTheShortsToFloatsAndZeroTheImagSamplesBuffer() {
+		// convert the shorts to floats and zero the imagSamples buffer:
+		for (int i = 0; i < realSamples.length; i++) {
+			realSamples[i] = 0f;
+			imagSamples[i] = 0f;
+		}
+		short2float(audioBuffer, realSamples);
+	}
+
+	public boolean readNewAudioSamplesIntoTheBuffer() {
+		// Read new audio samples into the buffer:
+		if(audioRecord.read(audioBuffer, 0, audioBuffer.length) != audioBuffer.length) {
+			Log.e(LOGTAG, "run: Error while reading from AudioRecord. stop.");
+			stopRequested = true;
+			return true;
+		}
+		Log.d(LOGTAG, "run: audioBuffer: " + audioBuffer[0] + ", " + audioBuffer[1] + ", " + audioBuffer[2] + ", ..., " + audioBuffer[500]);
+		return false;
+	}
+
+	public boolean isAudioRecordCorrectlyInitialized() {
+		// Check if AudioRecord is correctly initialized:
+		if(audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+			Log.e(LOGTAG, "run: audioRecord is null or not initialized! Abort!");
+			stopRequested = true;
+			return true;
+		}
+		return false;
+	}
+
+	public void initializeTheAudioRecordInstance(int audioBufferSize) {
+		// initialize the AudioRecord instance
+		audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, RECORDER_SAMPLERATE, RECORDER_CHANNELS,
+				RECORDER_AUDIO_ENCODING, audioBufferSize);
+	}
+
+	public int getAudioBufferSize() {
+		// Determine buffer size for the audioRecord:
+		int minBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
+				RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+		Log.d(LOGTAG, "constructor: min. buffer size is " + minBufferSize);
+		return Math.max(minBufferSize, BUFFER_SIZE * RECORDER_ELEMENT_SIZE) * 2;
 	}
 
 }
