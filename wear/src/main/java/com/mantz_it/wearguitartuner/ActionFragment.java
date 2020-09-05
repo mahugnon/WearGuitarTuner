@@ -2,7 +2,7 @@ package com.mantz_it.wearguitartuner;
 
 import android.app.Fragment;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.support.wearable.view.CircledImageView;
 import android.view.LayoutInflater;
 import android.view.View;

@@ -10,7 +10,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
-import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,6 +20,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -68,8 +69,8 @@ import java.io.UnsupportedEncodingException;
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-public class MainActivity extends ActionBarActivity implements GoogleApiClient.ConnectionCallbacks,
-		GoogleApiClient.OnConnectionFailedListener, MessageApi.MessageListener, NodeApi.NodeListener,
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,
+		GoogleApiClient.OnConnectionFailedListener, MessageApi.MessageListener,
 		SharedPreferences.OnSharedPreferenceChangeListener,
 		CompoundButton.OnCheckedChangeListener, View.OnClickListener {
 	private static final String LOGTAG = "MainActivity";
@@ -215,7 +216,7 @@ public class MainActivity extends ActionBarActivity implements GoogleApiClient.C
 
 		// Register message and node listener:
 		Wearable.MessageApi.addListener(googleApiClient, this);		// will execute onMessageReceived() if a message arrives
-		Wearable.NodeApi.addListener(googleApiClient, this);		// will execute onPeerConnected() and onPeerDisconnected()
+	//	Wearable.NodeApi.addListener(googleApiClient, this);		// will execute onPeerConnected() and onPeerDisconnected()
 	}
 
 	/**
@@ -240,24 +241,24 @@ public class MainActivity extends ActionBarActivity implements GoogleApiClient.C
 	 * (NodeListener)
 	 * Gets called if a new node (a wearable) is connected to the phone
 	 */
-	@Override
-	public void onPeerConnected(Node node) {
-		Log.i(LOGTAG, "onPeerConnected: Node " + node.getId() + " connected!");
-		wearableNode = node;
-	}
+//	@Override
+//	public void onPeerConnected(Node node) {
+//		Log.i(LOGTAG, "onPeerConnected: Node " + node.getId() + " connected!");
+//		wearableNode = node;
+//	}
 
 	/**
 	 * (NodeListener)
 	 * Gets called if a node (a wearable) disconnects from the phone
 	 */
-	@Override
-	public void onPeerDisconnected(Node node) {
-		Log.i(LOGTAG, "onPeerDisconnected: Node " + node.getId() + " has disconnected!");
-		if(wearableNode.getId().equals(node.getId())) {
-			Log.i(LOGTAG, "onPeerDisconnected: Setting wearable node to null!");
-			wearableNode = null;
-		}
-	}
+//	@Override
+//	public void onPeerDisconnected(Node node) {
+//		Log.i(LOGTAG, "onPeerDisconnected: Node " + node.getId() + " has disconnected!");
+//		if(wearableNode.getId().equals(node.getId())) {
+//			Log.i(LOGTAG, "onPeerDisconnected: Setting wearable node to null!");
+//			wearableNode = null;
+//		}
+//	}
 
 	/**
 	 * (MessageListener)

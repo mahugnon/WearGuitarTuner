@@ -1,15 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.1"
+    compileSdkVersion 30
+    buildToolsVersion '30.0.0'
 
     defaultConfig {
         applicationId "com.mantz_it.wearguitartuner"
         minSdkVersion 18
-        targetSdkVersion 21
+        targetSdkVersion 30
         versionCode 1
         versionName "1.01"
+        multiDexEnabled true
     }
     buildTypes {
         release {
@@ -20,9 +21,10 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile project(':guitartunerlibrary')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':guitartunerlibrary')
     wearApp project(':wear')
-    compile 'com.android.support:appcompat-v7:21.0.3'
+    implementation 'androidx.appcompat:appcompat:1.0.0'
+    implementation 'com.android.support:multidex:1.0.3'
 
 }
